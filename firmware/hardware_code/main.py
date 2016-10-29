@@ -1,23 +1,23 @@
 #!/usr/bin/python
 import RPi.GPIO as GPIO
 from pymongo import MongoClient
-import datetime, threading, Queue, time, logging, sys
+import datetime, threading, Queue, time, sys
 from hx711 import HX711
 
-client = MongoClient("mongodb://sotiris:#@ds019143.mlab.com:19143/wheel")
+client = MongoClient("mongodb://sotiris:Ars3n4l123@ds019143.mlab.com:19143/wheel")
+#client = MongoClient("mongodb://192.168.2.6/mousewheel")
 db = client.wheel
-collection = db.data_wheel
+session = db.dataset
 file_name = time.strftime("%Y_%m_%d_%H%M")
-print "Logfile name: " + file_name+".log" + " created..."
-logging.basicConfig(filename=file_name+".log",level=logging.DEBUG)
+print "Logfile name: " + file_name " created..."
 
 print "Calibrating weight sensor"
 hx = HX711(9,11)
 hx.set_reading_format("LSB", "MSB")
-hx.set_reference_unit(2104)
+hx.set_reference_unit(1052)
 hx.reset()
 hx.tare()
-print "Weight calibration complete"
+print "Weight Sensor Calibrated"
 
 class Interrupt:
     def __init__(self):
@@ -62,7 +62,6 @@ class Logging:
                     d = c - b
                     if d > datetime.timedelta(seconds=3):
                         int_no = int_no + 1
-                        print "interval number: " + str(int_no)
                         session.insert({'session_id': file_name,
                                         'interval_no': int_no,
                                         'timestamp': [],
@@ -74,10 +73,11 @@ class Logging:
 
 
 def main():
-        LT = threading.Thread(target=L.run, args=())
         L = Logging()
-        LT.start()
+        LT = threading.Thread(target=L.run, args=())
         Interrupt()
+        LT.start()
+
 
         try:
             while True:
