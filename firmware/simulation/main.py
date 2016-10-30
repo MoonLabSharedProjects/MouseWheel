@@ -70,8 +70,6 @@ class Logging:
             print "adjusted weight: " + str(weight)
             averageq.task_done()
             return weight
-        else:
-            print ""
 
     #models weight data, this function is called everytime an "interrupt" happens
     def run(self):
