@@ -1,10 +1,11 @@
 #!/usr/bin/python
 import RPi.GPIO as GPIO
 from pymongo import MongoClient
-import datetime, threading, Queue, time, sys
+import datetime, threading, Queue, time
 from hx711 import HX711
 
 print "Connecting to db"
+#client = MongoClient("mongodb://sotiris:Ars3n4l123@ds019143.mlab.com:19143/wheel")
 client = MongoClient("mongodb://192.168.2.1/wheel")
 print "Connected to db"
 db = client.wheel
@@ -31,28 +32,6 @@ class Interrupt:
         t = datetime.datetime.now()
         q.put(t)
 
-class Weight:
-    def __init__(self):
-        self.running = True
-    def run(self):
-        global averageq
-        weightlist = []
-        while self.running:
-            weight_int = intervalq.get()
-            while weight_int > datetime.timedelta(seconds=3):
-                unloaded = hx.get_weight(5)
-                hx.power_down()
-                hx.power_up()
-                weightlist.append(unloaded)
-                aver_unloaded_weights = float(sum(weightlist)) / len(weightlist)
-                if len(weightlist) > 20:
-                    weightlist.pop(0)
-                rounded_avg = round(aver_unloaded_weights, 3)
-                averageq.put(rounded_avg)
-                time.sleep(0.5)
-            else:
-                intervalq.task_done()
-                # pull weight information when the interrupts aren't happening, average last 10 readings
 class Logging:
     def __init__(self):
         self.running = True
@@ -64,24 +43,12 @@ class Logging:
                         'timestamp': [],
                         'weight': [],})
 #initialises the first MongoDB collection with default documents
-
-    def weightloaded(self):
+    def weight(self):
         self.running = True
-        global averageq
-        if averageq.empty() == False:
-            roll_avg = averageq.get()
-
-            # pull weight informaiton when the interrups are happening
-            # return current weight reading - average of unloaded weight
-            loadedweight = hx.get_weight(5)
-            hx.power_down()
-            hx.power_up()
-            weight = loadedweight - roll_avg
-
-
-
-            averageq.task_done()
-            return weight
+        weight = hx.get_weight(5)
+        hx.power_down()
+        hx.power_up()
+        return weight
 #models weight data, this function is called everytime an "interrupt" happens
     def run(self):
         global int_no
@@ -96,7 +63,6 @@ class Logging:
                     b = list[a-2]
                     c = list[a-1]
                     d = c - b
-                    intervalq.put(d)
                     if d > datetime.timedelta(seconds=3):
                         int_no = int_no + 1
                         session.insert({'session_id': file_name,
@@ -104,29 +70,27 @@ class Logging:
                                         'timestamp': [],
                                         'weight': [],})
                     else:
-                        session.update({'interval_no': int_no}, {'$push': {'timestamp': item, 'weight': self.weightloaded()}})
+                        session.update({'interval_no': int_no}, {'$push': {'timestamp': item, 'weight': self.weight()}})
                     list.pop(0)
                 q.task_done()
 
-
 def main():
-    while True:
-        try:
-            L = Logging()
-            w = Weight()
-            WeightClass = threading.Thread(target=w.run, args=())
-            LT = threading.Thread(target=L.run, args=())
-            Interrupt()
-            LT.start()
-            WeightClass.start()
+        L = Logging()
+        LT = threading.Thread(target=L.run, args=())
+        Interrupt()
+        LT.start()
 
+        try:
+            while True:
+                pass
         except KeyboardInterrupt:
-            print "Main interrupt handled. Now terminating logging"
             print "Cleaning GPIO..."
             GPIO.cleanup()
             print "Cleaned"
-            sys.exit()
+
 
 if __name__ == "__main__":
     q = Queue.Queue()
     main()
+
+
