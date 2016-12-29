@@ -7,6 +7,12 @@ session = db.dataset
 diam = math.pi * 11
 speeds = []
 
+def intervals(session_id):
+    xyz = session.find({"session_id": session_id, "interval_no": {'$gt': 0}})
+    intervals = xyz.distinct("interval_no")
+    numb = len(intervals)
+    return numb
+
 def weightcalc(session_id):
     xyz = session.find({"session_id": session_id, "interval_no": {'$gt': 0}})
     weights = xyz.distinct("weight")
@@ -50,3 +56,14 @@ def topspeed(session_id):
             del avrg[:]
     topspeed = max(speeds)
     return topspeed
+
+def totaltime(session_id):
+    times = []
+    xyz = session.find({"session_id": session_id, "interval_no": {'$gt': 0}})
+    intervals = xyz.distinct("timestamp")
+    for i in intervals:
+        times.append(i)
+    x = times[len(times) - 1] - times[0]
+    return x
+
+
