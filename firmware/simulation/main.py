@@ -10,7 +10,7 @@ session = db.dataset
 file_name = time.strftime("%Y_%m_%d_%H%M")
 #print "Logfile name: " + file_name+".log" + " created..."
 #logging.basicConfig(filename=file_name+".log",level=logging.DEBUG)
-stdscr = curses.initscr()
+    stdscr = curses.initscr()
 stdscr.addstr(1, 4, "RodentRunner Simulation V1", curses.A_BOLD)
 stdscr.addstr(5, 4, "Weight Readings...", curses.A_BOLD)
 
