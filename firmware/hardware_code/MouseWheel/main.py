@@ -1,32 +1,31 @@
 #!/usr/bin/python
 import RPi.GPIO as GPIO
 from pymongo import MongoClient
-import datetime, threading, Queue, time, sys
+import datetime, threading, Queue, time, sys, serial, math
 from hx711 import HX711
 
+file_name = time.strftime("%d_%m_%Y_%H%M")
 print "Connecting to db"
-client = MongoClient("mongodb://192.168.2.1/wheel")
+client = MongoClient("mongodb://10.0.0.1:37018/wheel")
 print "Connected to db"
 db = client.wheel
 session = db.dataset
 session.insert({'status': "started"})
-file_name = time.strftime("%Y_%m_%d_%H%M")
-print "Logfile name: " + file_name+".log" + " created..."
-
-
+GPIO.setwarnings(False)
 print "Calibrating weight sensor"
 hx = HX711(9,11)
 hx.set_reading_format("LSB", "MSB")
-hx.set_reference_unit(1052)
+hx.set_reference_unit(2363.2)
 hx.reset()
 hx.tare()
 print "Weight Sensor Calibrated"
 
 class Interrupt:
     def __init__(self):
+	    GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(17, GPIO.FALLING, callback=self.event_callback, bouncetime=200)
+        GPIO.setup(5, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.add_event_detect(5, GPIO.FALLING, callback=self.event_callback)
     def event_callback(self):
         global q
         t = datetime.datetime.now()
@@ -35,7 +34,7 @@ class Interrupt:
 class Logging:
     def __init__(self):
         self.running = True
-
+        self.port = serial.Serial("/dev/ttyAMA0", baudrate=9600, timeout=0.1)
         global int_no
         int_no = 0
         session.insert({'session_id': file_name,
@@ -54,7 +53,7 @@ class Logging:
         hx.tare()
 
     def rfid(self):
-        port.write("RSD\r")
+        self.port.write("RSD\r")
         time.sleep(0.05)
         a = port.readline()
         if len(a) < 15 or a == "?1\r":
@@ -91,20 +90,12 @@ class Logging:
 
 
 def main():
-    while True:
-        try:
-            L = Logging()
-            LT = threading.Thread(target=L.run, args=())
-            Interrupt()
-            LT.start()
-
-        except KeyboardInterrupt:
-            print "Main interrupt handled. Now terminating logging"
-            print "Cleaning GPIO..."
-            GPIO.cleanup()
-            print "Cleaned"
-            sys.exit()
+    Interrupt()
+    L = Logging()
+    LT = threading.Thread(target=L.run, args=())
+    LT.start()
 
 if __name__ == "__main__":
     q = Queue.Queue()
     main()
+
