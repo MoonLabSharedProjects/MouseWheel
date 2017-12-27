@@ -34,7 +34,7 @@ class Interrupt:
 class Logging:
     def __init__(self):
         self.running = True
-        self.port = serial.Serial("/dev/ttyAMA0", baudrate=9600, timeout=0.1)
+        self.port = serial.Serial("/dev/ttyS0", baudrate=9600, timeout=0.1)
         global int_no
         int_no = 0
         session.insert({'session_id': file_name,
